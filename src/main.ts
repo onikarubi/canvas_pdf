@@ -85,4 +85,10 @@ function drawBox() {
     context.strokeRect(rect.x, rect.y, rect.w, rect.h);
   }
 }
-drawBox()
+// drawBox()
+
+import DrawCanvas from "./DrawCanvas";
+
+const drawCanvas = new DrawCanvas();
+
+

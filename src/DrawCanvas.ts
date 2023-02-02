@@ -86,6 +86,7 @@ class CanvasEventHandler {
       if (histories.length < 1) {
         return;
       }
+
       for (const array of histories) {
         array.drawRect(this.canvasElement);
       }

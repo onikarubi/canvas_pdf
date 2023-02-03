@@ -2,13 +2,6 @@ const canvas: HTMLCanvasElement = document.querySelector('canvas');
 const defaultCanvasWidth = 800;
 const defaultCanvasHeight = 600;
 
-type RectangleCoordinate = {
-  x: number,
-  y: number,
-  w: number,
-  h: number
-}
-
 class Rectangle {
   private color: string;
   public x: number;
@@ -28,27 +21,31 @@ class Rectangle {
     return this.color;
   }
 
-  public get getCoordinate() : RectangleCoordinate {
-    return this.getCoordinate;
-  }
-
   public set changeColor(color: string) {
     this.color = color;
   }
 
-  public drawRect(canvas: HTMLCanvasElement): void {
-    const context = canvas.getContext('2d');
+  public drawRect(context: CanvasRenderingContext2D): void {
     context.strokeStyle = this.color;
     context.strokeRect(this.x, this.y, this.w, this.h);
+  }
+
+  public getCoordinateFromMousePosition(event: MouseEvent, isMouseMove: boolean): void {
+    if (!isMouseMove) {
+      this.x = event.offsetX;
+      this.y = event.offsetY;
+      return;
+    }
+
+    this.w = event.offsetX - this.x;
+    this.h = event.offsetY - this.y;
   }
 }
 
 class CanvasEventHandler {
   private mouseDown: boolean;
   private mouseMove: boolean;
-  private mouseUp: boolean;
   private metaKeyDown: boolean;
-  private zKeyDown: boolean;
   private canvasElement: HTMLCanvasElement;
   private readonly context: CanvasRenderingContext2D;
 
@@ -57,17 +54,14 @@ class CanvasEventHandler {
     this.context = canvas.getContext('2d');
     this.mouseDown = false;
     this.mouseMove = false;
-    this.mouseUp = false;
     this.metaKeyDown = false;
-    this.zKeyDown = false;
   }
 
   public mouseEventDown(rectangle: Rectangle): void {
     this.canvasElement.addEventListener('mousedown', (event: MouseEvent) => {
       this.mouseDown = true;
-      rectangle.x = event.offsetX;
-      rectangle.y = event.offsetY;
-      rectangle.drawRect(this.canvasElement);
+      rectangle.getCoordinateFromMousePosition(event, this.mouseMove);
+      rectangle.drawRect(this.context);
     });
   }
 
@@ -78,17 +72,16 @@ class CanvasEventHandler {
       }
 
       this.mouseMove = true;
-      rectangle.w = event.offsetX - rectangle.x;
-      rectangle.h = event.offsetY - rectangle.y;
+      rectangle.getCoordinateFromMousePosition(event, this.mouseMove);
       this.context.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
-      rectangle.drawRect(this.canvasElement);
+      rectangle.drawRect(this.context);
 
       if (histories.length < 1) {
         return;
       }
 
       for (const array of histories) {
-        array.drawRect(this.canvasElement);
+        array.drawRect(this.context);
       }
     });
   }
@@ -98,6 +91,7 @@ class CanvasEventHandler {
       histories.push(new Rectangle(rectangle.x, rectangle.y, rectangle.w, rectangle.h));
 
       this.mouseDown = false;
+      this.mouseMove = false;
       rectangle.x = 0;
       rectangle.y = 0;
       rectangle.w = 0;
@@ -105,93 +99,56 @@ class CanvasEventHandler {
     });
   }
 
-  public keyDownControl(historyRects: Array<Rectangle>, removeRects: Array<Rectangle>): void {
-    window.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Meta') {
+  // 履歴データの更新(追加履歴、 削除履歴)
+  private enqueueFromHistoryToStackAnotherArray(enqueueRects: Array<Rectangle>, stackRects: Array<Rectangle>) : void {
+    if (enqueueRects.length < 1) {
+      return;
+    }
+
+    const enqueueRect: Rectangle = enqueueRects.pop();
+    stackRects.push(new Rectangle(enqueueRect.x, enqueueRect.y, enqueueRect.w, enqueueRect.h));
+  }
+
+  public keyControlFromDown(historyRects: Array<Rectangle>, removeRects: Array<Rectangle>): void {
+    window.addEventListener('keydown', (event: KeyboardEvent) => {
+      const keyName = event.key;
+      if (keyName === 'Meta') {
         this.metaKeyDown = true;
-      } else if (this.metaKeyDown && e.key === 'z') {
-        if (removeRects.length < 1) {
-          return;
-        }
+      }
 
-        const historyRect: Rectangle = removeRects.pop();
-        historyRects.push(new Rectangle(historyRect.x, historyRect.y, historyRect.w, historyRect.h))
-        this.zKeyDown = true;
-        this.context.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
+      if (keyName === 'Backspace') {
+        this.enqueueFromHistoryToStackAnotherArray(historyRects, removeRects);
+        this.context.clearRect(0, 0, canvas.width, canvas.height);
 
-        for (const rect of historyRects) {
-          this.context.strokeRect(rect.x, rect.y, rect.w, rect.h)
-        }
-
-      } else if (e.key === 'Backspace') {
         if (historyRects.length < 1) {
           return;
         }
 
-        const removeRect: Rectangle = historyRects.pop();
-        removeRects.push(new Rectangle(removeRect.x, removeRect.y, removeRect.w, removeRect.h));
-        this.context.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
-
         for (const rect of historyRects) {
-          this.context.strokeRect(rect.x, rect.y, rect.w, rect.h)
+          rect.drawRect(this.context);
         }
       }
+
+      if (keyName === 'z' && this.metaKeyDown) {
+        this.enqueueFromHistoryToStackAnotherArray(removeRects, historyRects);
+        this.context.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (const rect of historyRects) {
+          rect.drawRect(this.context);
+        }
+      }
+
     })
   }
 
   public keyUpControl = () => {
     window.addEventListener('keyup', (e) => {
-      if (!(e.key === 'Meta' || e.key === 'z')) {
-        return
-      }
-
       if (e.key === 'Meta') {
         this.metaKeyDown = false;
-
-      } else if (e.key === 'z') {
-        this.zKeyDown = false;
+      } else {
+        return;
       }
     });
-  }
-
-  public isMouseDown(): boolean {
-    return this.mouseDown;
-  }
-
-  public changeFlagIsMouseDown(setBool: boolean): void {
-    this.mouseDown = setBool;
-  }
-
-  public isMouseMove() : boolean {
-    return this.mouseMove;
-  }
-
-  public changeFlagIsMouseMove(setBool: boolean): void {
-    this.mouseMove = setBool;
-  }
-
-  public isMouseUp(): boolean {
-    return this.mouseUp;
-  }
-
-  public changeFlagIsMouseUp(setBool: boolean): void {
-    this.mouseUp = setBool;
-  }
-
-  public isMetaKeyDown(): boolean {
-    return this.metaKeyDown;
-  }
-
-  public changeFlagMetaKeyDown(setBool: boolean): void {
-    this.metaKeyDown = setBool;
-  }
-
-  public isZKeyDown(): boolean {
-    return this.zKeyDown;
-  }
-
-  public changeFlagIsZKeyDown(setBool: boolean): void {
-    this.zKeyDown = setBool;
   }
 }
 
@@ -218,15 +175,18 @@ class DrawCanvas {
     this.rectangle = new Rectangle();
     this.historyRects = [];
     this.removeRects = [];
+  }
 
+  public draw(): void {
     requestAnimationFrame(() => {
       this.eventHandler.mouseEventDown(this.rectangle);
       this.eventHandler.mouseEventMove(this.rectangle, this.historyRects);
       this.eventHandler.mouseEventUp(this.rectangle, this.historyRects);
-      this.eventHandler.keyDownControl(this.historyRects, this.removeRects);
+      this.eventHandler.keyControlFromDown(this.historyRects, this.removeRects);
       this.eventHandler.keyUpControl();
-    })
+    });
   }
+
 }
 
 export default DrawCanvas;

@@ -48,7 +48,6 @@ class Rectangle {
     this.h = 0;
   }
 
-
   public get getXCoordinate() : number {
     return this.x;
   }
@@ -61,7 +60,6 @@ class Rectangle {
   public get getHeightCoordinate() : number {
     return this.h;
   }
-
 }
 
 class CanvasEventHandler {
@@ -77,6 +75,26 @@ class CanvasEventHandler {
     this.mouseDown = false;
     this.mouseMove = false;
     this.metaKeyDown = false;
+  }
+
+  private drawAllRectangleFromHistory(histories: Array<Rectangle>) : void {
+    if (histories.length < 1) {
+      return;
+    }
+
+    histories.forEach(rectangle => {
+      rectangle.drawRect(this.context);
+    });
+  }
+
+  // 履歴データの更新(追加履歴、 削除履歴)
+  private enqueueFromHistoryToStackAnotherArray(enqueueRects: Array<Rectangle>, stackRects: Array<Rectangle>) : void {
+    if (enqueueRects.length < 1) {
+      return;
+    }
+
+    const enqueueRect: Rectangle = enqueueRects.pop();
+    stackRects.push(new Rectangle(enqueueRect.getXCoordinate, enqueueRect.getYCoordinate, enqueueRect.getWidthCoordinate, enqueueRect.getHeightCoordinate));
   }
 
   public mouseEventDown(rectangle: Rectangle): void {
@@ -97,14 +115,7 @@ class CanvasEventHandler {
       rectangle.getCoordinateFromMousePosition(event, this.mouseMove);
       this.context.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
       rectangle.drawRect(this.context);
-
-      if (histories.length < 1) {
-        return;
-      }
-
-      for (const array of histories) {
-        array.drawRect(this.context);
-      }
+      this.drawAllRectangleFromHistory(histories);
     });
   }
 
@@ -118,51 +129,31 @@ class CanvasEventHandler {
     });
   }
 
-  // 履歴データの更新(追加履歴、 削除履歴)
-  private enqueueFromHistoryToStackAnotherArray(enqueueRects: Array<Rectangle>, stackRects: Array<Rectangle>) : void {
-    if (enqueueRects.length < 1) {
-      return;
-    }
-
-    const enqueueRect: Rectangle = enqueueRects.pop();
-    stackRects.push(new Rectangle(enqueueRect.getXCoordinate, enqueueRect.getYCoordinate, enqueueRect.getWidthCoordinate, enqueueRect.getHeightCoordinate));
-  }
-
   public keyControlFromDown(historyRects: Array<Rectangle>, removeRects: Array<Rectangle>): void {
     window.addEventListener('keydown', (event: KeyboardEvent) => {
       const keyName = event.key;
-      if (keyName === 'Meta') {
+
+      if (keyName === 'Meta' || keyName === 'Control') {
         this.metaKeyDown = true;
       }
 
       if (keyName === 'Backspace') {
         this.enqueueFromHistoryToStackAnotherArray(historyRects, removeRects);
         this.context.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (historyRects.length < 1) {
-          return;
-        }
-
-        for (const rect of historyRects) {
-          rect.drawRect(this.context);
-        }
+        this.drawAllRectangleFromHistory(historyRects);
       }
 
       if (keyName === 'z' && this.metaKeyDown) {
         this.enqueueFromHistoryToStackAnotherArray(removeRects, historyRects);
         this.context.clearRect(0, 0, canvas.width, canvas.height);
-
-        for (const rect of historyRects) {
-          rect.drawRect(this.context);
-        }
+        this.drawAllRectangleFromHistory(historyRects);
       }
-
     })
   }
 
   public keyUpControl = () => {
     window.addEventListener('keyup', (e) => {
-      if (e.key === 'Meta') {
+      if (e.key === 'Meta' || e.key === 'Control') {
         this.metaKeyDown = false;
       } else {
         return;

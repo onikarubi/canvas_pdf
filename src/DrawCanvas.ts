@@ -4,10 +4,10 @@ const defaultCanvasHeight = 600;
 
 class Rectangle {
   private color: string;
-  public x: number;
-  public y: number;
-  public w: number;
-  public h: number;
+  private x: number;
+  private y: number;
+  private w: number;
+  private h: number;
 
   constructor(x: number = 0, y: number = 0, w: number = 0, h: number = 0, color: string = "blue") {
     this.x = x;
@@ -40,6 +40,28 @@ class Rectangle {
     this.w = event.offsetX - this.x;
     this.h = event.offsetY - this.y;
   }
+
+  public initializeCoordinates(): void {
+    this.x = 0;
+    this.y = 0;
+    this.w = 0;
+    this.h = 0;
+  }
+
+
+  public get getXCoordinate() : number {
+    return this.x;
+  }
+  public get getYCoordinate() : number {
+    return this.y;
+  }
+  public get getWidthCoordinate() : number {
+    return this.w;
+  }
+  public get getHeightCoordinate() : number {
+    return this.h;
+  }
+
 }
 
 class CanvasEventHandler {
@@ -88,14 +110,11 @@ class CanvasEventHandler {
 
   public mouseEventUp(rectangle: Rectangle, histories: Array<Rectangle>): void {
     this.canvasElement.addEventListener('mouseup', () => {
-      histories.push(new Rectangle(rectangle.x, rectangle.y, rectangle.w, rectangle.h));
+      histories.push(new Rectangle(rectangle.getXCoordinate, rectangle.getYCoordinate, rectangle.getWidthCoordinate, rectangle.getHeightCoordinate));
 
       this.mouseDown = false;
       this.mouseMove = false;
-      rectangle.x = 0;
-      rectangle.y = 0;
-      rectangle.w = 0;
-      rectangle.h = 0;
+      rectangle.initializeCoordinates();
     });
   }
 
@@ -106,7 +125,7 @@ class CanvasEventHandler {
     }
 
     const enqueueRect: Rectangle = enqueueRects.pop();
-    stackRects.push(new Rectangle(enqueueRect.x, enqueueRect.y, enqueueRect.w, enqueueRect.h));
+    stackRects.push(new Rectangle(enqueueRect.getXCoordinate, enqueueRect.getYCoordinate, enqueueRect.getWidthCoordinate, enqueueRect.getHeightCoordinate));
   }
 
   public keyControlFromDown(historyRects: Array<Rectangle>, removeRects: Array<Rectangle>): void {
